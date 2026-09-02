@@ -914,17 +914,34 @@ export default function App() {
     setLimit(targetLimit);
 
     try {
-      const res = await fetch(`${API_BASE}/scrape`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          keyword: targetKeyword.trim(), 
-          location: targetLocation.trim(), 
-          limit: parseInt(targetLimit, 10),
-          skip_previous: skipPreviousLeads,
-          required_fields: requiredFields,
-        })
-      });
+      let res;
+      try {
+        res = await fetch(`${API_BASE}/scrape`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            keyword: targetKeyword.trim(), 
+            location: targetLocation.trim(), 
+            limit: parseInt(targetLimit, 10),
+            skip_previous: skipPreviousLeads,
+            required_fields: requiredFields,
+          })
+        });
+      } catch (firstErr) {
+        setProgressLogs(prev => [...prev, 'Cloud server waking up, retrying connection...']);
+        await new Promise(r => setTimeout(r, 3000));
+        res = await fetch(`${API_BASE}/scrape`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            keyword: targetKeyword.trim(), 
+            location: targetLocation.trim(), 
+            limit: parseInt(targetLimit, 10),
+            skip_previous: skipPreviousLeads,
+            required_fields: requiredFields,
+          })
+        });
+      }
 
       if (!res.ok) {
         throw new Error('Failed to launch scraper background process');
@@ -988,32 +1005,70 @@ export default function App() {
     }
   };
 
-  const runScraper = async (targetKeyword, targetLocation, targetLimit) => {
-    await startScrapingProcess(targetKeyword, targetLocation, targetLimit);
+  const parsePromptClientSide = (text) => {
+    let limit = 25;
+    let clean = (text || '').trim();
+    
+    // Extract limit if specified (e.g. "Extract 25 ...", "50 plumbers ...")
+    const limitMatch = clean.match(/(?:extract|find|get|scrape|top)?\s*(\d+)\s*/i);
+    if (limitMatch && limitMatch[1]) {
+      const parsedNum = parseInt(limitMatch[1], 10);
+      if (parsedNum > 0 && parsedNum <= 200) {
+        limit = parsedNum;
+        clean = clean.replace(limitMatch[0], ' ').trim();
+      }
+    }
+    
+    clean = clean.replace(/^(extract|find|get|scrape|show|search)\s+/i, '').trim();
+    
+    let keyword = clean;
+    let location = 'worldwide';
+    
+    const locMatch = clean.match(/(.*?)\s+(?:in|at|near|around|for)\s+(.+)$/i);
+    if (locMatch) {
+      keyword = locMatch[1].trim();
+      location = locMatch[2].trim();
+    }
+    
+    return {
+      keyword: keyword || 'businesses',
+      location: location || 'worldwide',
+      limit
+    };
   };
 
   const handleSendAiPrompt = async (promptText) => {
     if (!promptText.trim()) return;
     setIsConfiguringAI(true);
+    let config = null;
+
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      
       const res = await fetch(`${API_BASE}/ai/parse-command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: promptText })
+        body: JSON.stringify({ command: promptText }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (res.ok) {
-        const config = await res.json();
-        setAiPrompt('');
-        await startScrapingProcess(config.keyword, config.location, config.limit || 50);
-      } else {
-        alert("Failed to parse prompt with AI");
+        config = await res.json();
       }
     } catch (e) {
-      console.error(e);
-      alert("Error sending AI command");
-    } finally {
-      setIsConfiguringAI(false);
+      console.warn("AI parse command network fallback to local heuristic parser:", e);
     }
+
+    // If backend AI parsing failed or timed out, use intelligent client-side parser
+    if (!config || !config.keyword) {
+      config = parsePromptClientSide(promptText);
+    }
+
+    setAiPrompt('');
+    setIsConfiguringAI(false);
+    await startScrapingProcess(config.keyword, config.location, config.limit || 25);
   };
 
   const fetchLeads = async (sessionIdOverride = null) => {
