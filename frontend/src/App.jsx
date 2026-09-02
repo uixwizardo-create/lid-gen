@@ -271,6 +271,37 @@ export default function App() {
     }
   };
 
+  const handleSelectSession = (session) => {
+    if (!session) return;
+    setSelectedSessionId(session.id);
+    setCurrentSessionId(session.id);
+    setKeyword(session.keyword || 'lead generation');
+    setLocation(session.location || 'worldwide');
+    setPage(1);
+    setCurrentView('dashboard');
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('session', session.id);
+      window.history.pushState({ session: session.id }, '', url.toString());
+    }
+  };
+
+  const handleStartNewSession = () => {
+    setSelectedSessionId('');
+    setCurrentSessionId('');
+    setKeyword('');
+    setLocation('');
+    setAiPrompt('');
+    setLeads([]);
+    setCurrentView('dashboard');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('session');
+      window.history.pushState({ session: '' }, '', url.pathname);
+    }
+  };
+
   const handleDeleteSession = async (sessionId, e) => {
     if (e) e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this historical session and all its leads? This action cannot be undone.")) {
@@ -1265,14 +1296,7 @@ export default function App() {
         <div className="flex flex-col gap-6 items-center">
           {/* Logo */}
           <div 
-            onClick={() => {
-              setSelectedSessionId('');
-              setCurrentSessionId('');
-              setKeyword('');
-              setLocation('');
-              setAiPrompt('');
-              setCurrentView('dashboard');
-            }}
+            onClick={handleStartNewSession}
             className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-[0_0_15px_rgba(255,165,0,0.4)] cursor-pointer"
           >
             <Layers className="w-6 h-6 text-white" />
@@ -1280,16 +1304,9 @@ export default function App() {
           {/* Nav Icons */}
           <nav className="flex flex-col gap-4 mt-4">
             <button
-              onClick={() => {
-                setSelectedSessionId('');
-                setCurrentSessionId('');
-                setKeyword('');
-                setLocation('');
-                setAiPrompt('');
-                setCurrentView('dashboard');
-              }}
+              onClick={handleStartNewSession}
               className={`p-3 rounded-xl transition-all ${currentView === 'dashboard' && !selectedSessionId && !currentSessionId ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40'}`}
-              title="Dashboard"
+              title="New Session"
             >
               <Compass className="w-5 h-5" />
             </button>
@@ -1357,14 +1374,7 @@ export default function App() {
                   .map(session => (
                     <button 
                       key={session.id}
-                      onClick={() => {
-                        setSelectedSessionId(session.id);
-                        setCurrentSessionId(session.id);
-                        setKeyword(session.keyword || 'lead generation');
-                        setLocation(session.location || 'worldwide');
-                        setPage(1);
-                        setCurrentView('dashboard');
-                      }}
+                      onClick={() => handleSelectSession(session)}
                       className={`flex items-start gap-3 w-full text-left p-2.5 rounded-xl transition-all group ${selectedSessionId === session.id ? 'bg-zinc-800/80 text-white' : 'hover:bg-zinc-800/40 text-zinc-400'}`}
                     >
                       <div className="mt-0.5 shrink-0">
@@ -1407,14 +1417,7 @@ export default function App() {
                   return (
                     <button 
                       key={session.id}
-                      onClick={() => {
-                        setSelectedSessionId(session.id);
-                        setCurrentSessionId(session.id);
-                        setKeyword(session.keyword || 'lead generation');
-                        setLocation(session.location || 'worldwide');
-                        setPage(1);
-                        setCurrentView('dashboard');
-                      }}
+                      onClick={() => handleSelectSession(session)}
                       className={`flex items-start gap-3 w-full text-left p-2.5 rounded-xl transition-all group ${selectedSessionId === session.id ? 'bg-zinc-800/80 text-white border border-zinc-700/60 shadow-sm' : 'hover:bg-zinc-800/40 text-zinc-400'}`}
                     >
                       <div className="mt-1 shrink-0">
@@ -2099,10 +2102,7 @@ export default function App() {
 
                             <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/40">
                               <Button 
-                                onClick={() => {
-                                  setSelectedSessionId(session.id);
-                                  setCurrentView('dashboard');
-                                }}
+                                onClick={() => handleSelectSession(session)}
                                 className="flex-1 text-xs h-8 bg-zinc-800 hover:bg-zinc-750 text-zinc-300 hover:text-white"
                               >
                                 View Leads
