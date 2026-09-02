@@ -1206,7 +1206,7 @@ export default function App() {
 
   // Dynamic logs computation for the active or selected historical session
   const displayLogs = React.useMemo(() => {
-    if (isScraping) {
+    if (isScraping || progressLogs.length > 0) {
       return progressLogs;
     }
     if (selectedSessionId) {
@@ -2275,8 +2275,8 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Leads Table Card */}
-                    {leads.length > 0 && (
+                    {/* Leads Table Card or Loading Status */}
+                    {leads.length > 0 ? (
                       <div className="glass-card rounded-2xl border border-zinc-800/80 bg-[#131924]/80 overflow-hidden shadow-2xl">
                         <div className="px-5 py-3 border-b border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 bg-zinc-900/40">
                           <div className="flex items-center gap-3">
@@ -2405,18 +2405,15 @@ export default function App() {
                                     <div className="space-y-1">
                                       {lead.email ? (
                                         <div className="flex items-center gap-1.5">
-                                          <Mail className="w-3.5 h-3.5 text-primary-400" />
-                                          <span className="text-xs text-zinc-300">{lead.email}</span>
-                                          {lead.email_status === 'deliverable' && (
-                                            <Badge className="h-4 px-1.5 text-[9px] bg-green-500/10 text-green-400 border-green-500/20 rounded ml-1">Verified</Badge>
-                                          )}
-                                          {lead.email_status === 'risky' && (
-                                            <Badge className="h-4 px-1.5 text-[9px] bg-yellow-500/10 text-yellow-400 border-yellow-500/20 rounded ml-1">Risky</Badge>
-                                          )}
-                                          {lead.email_status === 'undeliverable' && (
-                                            <Badge className="h-4 px-1.5 text-[9px] bg-red-500/10 text-red-400 border-red-500/20 rounded ml-1">Invalid</Badge>
-                                          )}
-                                          {(lead.email_status === 'unchecked' || !lead.email_status) && (
+                                          <Mail className="w-3.5 h-3.5 text-zinc-400" />
+                                          <span className="text-xs text-zinc-200">{lead.email}</span>
+                                          {lead.email_status === 'valid' ? (
+                                            <Badge className="h-4 px-1.5 text-[9px] bg-emerald-950/80 text-emerald-400 border-emerald-800 rounded ml-1">Verified</Badge>
+                                          ) : lead.email_status === 'risky' ? (
+                                            <Badge className="h-4 px-1.5 text-[9px] bg-yellow-950/80 text-yellow-400 border-yellow-800 rounded ml-1">Risky</Badge>
+                                          ) : lead.email_status === 'invalid' ? (
+                                            <Badge className="h-4 px-1.5 text-[9px] bg-rose-950/80 text-rose-400 border-rose-800 rounded ml-1">Invalid</Badge>
+                                          ) : (
                                             <Badge className="h-4 px-1.5 text-[9px] bg-zinc-800 text-zinc-400 border-zinc-700 rounded ml-1">Unchecked</Badge>
                                           )}
                                         </div>
@@ -2505,7 +2502,13 @@ export default function App() {
           </div>
         </div>
       </div>
-    )}
+    ) : isScraping ? (
+      <div className="glass-card rounded-2xl border border-zinc-800/80 bg-[#131924]/60 p-8 text-center flex flex-col items-center justify-center space-y-3 shadow-lg">
+        <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+        <div className="text-sm text-zinc-200 font-medium">Extracting business listings from Google Maps...</div>
+        <div className="text-xs text-zinc-500">Scanning names, phone numbers, websites, and emails in real-time.</div>
+      </div>
+    ) : null}
 
                   </div>
                 </div>
