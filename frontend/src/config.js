@@ -1,5 +1,9 @@
 // Centralized Frontend Configuration
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || (
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? 'https://lid-gen-aioq.onrender.com/api'
+    : 'http://localhost:8000/api'
+);
 
 export const CONFIG_DEFAULTS = {
   DEFAULT_SCRAPE_LIMIT: 50,
