@@ -232,7 +232,6 @@ async def crawl_website_for_emails_and_tech(context: BrowserContext, url: str) -
         emails = await extract_emails_from_page(page)
         if emails:
             result["email"] = emails[0]
-            await page.close()
             return result
             
         # Homepage yielded nothing. Look for Contact/About page links
@@ -281,7 +280,6 @@ async def crawl_website_for_emails_and_tech(context: BrowserContext, url: str) -
                             result["tech_stack"] = detect_website_tech(sub_html)
                         except Exception:
                             pass
-                    await page.close()
                     return result
             except Exception as se:
                 logger.warning(f"Failed to crawl sub-page {contact_url}: {se}")
@@ -289,7 +287,11 @@ async def crawl_website_for_emails_and_tech(context: BrowserContext, url: str) -
     except Exception as e:
         logger.error(f"Failed to scan website {url}: {e}")
     finally:
-        await page.close()
+        try:
+            if not page.is_closed():
+                await page.close()
+        except Exception:
+            pass
     return result
 
 async def scrape_google_maps(
@@ -426,11 +428,17 @@ async def scrape_google_maps(
                 except Exception:
                     pass
 
+                # Wait for place details header to hydrate
+                try:
+                    await detail_page.wait_for_selector("h1, div[role='main'] h1", timeout=5000)
+                except Exception:
+                    pass
+
                 # Resilient Selectors
                 name = "Unknown Name"
-                h1_el = await detail_page.query_selector("h1")
+                h1_el = await detail_page.query_selector("h1, div.fontHeadlineLarge, div[role='main'] h1")
                 if h1_el:
-                    name = await h1_el.inner_text()
+                    name = (await h1_el.inner_text()).strip()
                 
                 if exclude_names and name in exclude_names:
                     await progress_callback(f"[PHASE:EXCLUDE] Skipping previously extracted lead: '{name}'")
