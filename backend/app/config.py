@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     SCRAPER_CARD_TIMEOUT_MS: int = int(os.getenv("SCRAPER_CARD_TIMEOUT_MS", "20000"))
     SCRAPER_WEBSITE_TIMEOUT_MS: int = int(os.getenv("SCRAPER_WEBSITE_TIMEOUT_MS", "15000"))
     SCRAPER_CONTACT_PAGES_LIMIT: int = int(os.getenv("SCRAPER_CONTACT_PAGES_LIMIT", "3"))
-    SCRAPER_CONCURRENCY_LIMIT: int = int(os.getenv("SCRAPER_CONCURRENCY_LIMIT", "5"))
+    SCRAPER_CONCURRENCY_LIMIT: int = int(os.getenv("SCRAPER_CONCURRENCY_LIMIT", "2"))
     
     # Email Verifier Settings
     VERIFIER_SMTP_TIMEOUT: float = float(os.getenv("VERIFIER_SMTP_TIMEOUT", "10.0"))

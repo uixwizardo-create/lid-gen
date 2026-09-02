@@ -341,7 +341,18 @@ async def scrape_google_maps(
         maps_url = f"https://www.google.com/maps/search/{search_query}?hl=en"
         
         await progress_callback("[PHASE:MAPS] Connecting to Google Maps search results...")
-        await page.goto(maps_url, wait_until="networkidle", timeout=settings.SCRAPER_MAPS_TIMEOUT_MS)
+        try:
+            await page.goto(maps_url, wait_until="domcontentloaded", timeout=settings.SCRAPER_MAPS_TIMEOUT_MS)
+            await asyncio.sleep(2.0)
+            
+            # Check for Google Consent Modal (common on European / US Cloud IPs)
+            consent_btn = await page.query_selector('button[aria-label*="Accept all"], form[action*="consent"] button, button:has-text("Accept all"), button:has-text("I agree"), button:has-text("Accept"), button:has-text("Alle akzeptieren")')
+            if consent_btn:
+                await progress_callback("[PHASE:MAPS] Bypassing Google Consent Dialog...")
+                await consent_btn.click()
+                await asyncio.sleep(2.0)
+        except Exception as nav_err:
+            logger.warning(f"Maps initial navigation warning: {nav_err}")
         
         place_urls = set()
         scroll_attempts = 0
