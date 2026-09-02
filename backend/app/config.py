@@ -6,11 +6,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./leads.db")
     
     # Scraper Engine Settings
-    SCRAPER_MAPS_TIMEOUT_MS: int = int(os.getenv("SCRAPER_MAPS_TIMEOUT_MS", "30000"))
-    SCRAPER_CARD_TIMEOUT_MS: int = int(os.getenv("SCRAPER_CARD_TIMEOUT_MS", "20000"))
-    SCRAPER_WEBSITE_TIMEOUT_MS: int = int(os.getenv("SCRAPER_WEBSITE_TIMEOUT_MS", "15000"))
-    SCRAPER_CONTACT_PAGES_LIMIT: int = int(os.getenv("SCRAPER_CONTACT_PAGES_LIMIT", "3"))
-    SCRAPER_CONCURRENCY_LIMIT: int = int(os.getenv("SCRAPER_CONCURRENCY_LIMIT", "2"))
+    SCRAPER_MAPS_TIMEOUT_MS: int = int(os.getenv("SCRAPER_MAPS_TIMEOUT_MS", "15000"))
+    SCRAPER_CARD_TIMEOUT_MS: int = int(os.getenv("SCRAPER_CARD_TIMEOUT_MS", "8000"))
+    SCRAPER_WEBSITE_TIMEOUT_MS: int = int(os.getenv("SCRAPER_WEBSITE_TIMEOUT_MS", "8000"))
+    SCRAPER_CONTACT_PAGES_LIMIT: int = int(os.getenv("SCRAPER_CONTACT_PAGES_LIMIT", "2"))
+    SCRAPER_CONCURRENCY_LIMIT: int = int(os.getenv("SCRAPER_CONCURRENCY_LIMIT", "3"))
     
     # Email Verifier Settings
     VERIFIER_SMTP_TIMEOUT: float = float(os.getenv("VERIFIER_SMTP_TIMEOUT", "10.0"))

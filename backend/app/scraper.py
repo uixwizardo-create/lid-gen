@@ -415,8 +415,17 @@ async def scrape_google_maps(
             try:
                 target_url = place_url + ("&hl=en" if "?" in place_url else "?hl=en")
                 await detail_page.goto(target_url, wait_until="domcontentloaded", timeout=settings.SCRAPER_CARD_TIMEOUT_MS)
-                await add_human_jitter(1.0, 2.5)
+                await add_human_jitter(0.2, 0.6)
                 
+                # Check for consent dialog on detail page if present
+                try:
+                    c_btn = await detail_page.query_selector('button[aria-label*="Accept all"], form[action*="consent"] button, button:has-text("Accept all")')
+                    if c_btn:
+                        await c_btn.click()
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
                 # Resilient Selectors
                 name = "Unknown Name"
                 h1_el = await detail_page.query_selector("h1")
