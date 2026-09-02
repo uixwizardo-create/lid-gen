@@ -1,8 +1,8 @@
 // Centralized Frontend Configuration
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || (
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-    ? 'https://lid-gen-aioq.onrender.com/api'
-    : 'http://localhost:8000/api'
+export const API_BASE = (
+  typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000/api'
+    : 'https://lid-gen-aioq.onrender.com/api'
 );
 
 export const CONFIG_DEFAULTS = {
