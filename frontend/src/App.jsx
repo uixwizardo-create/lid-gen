@@ -36,7 +36,8 @@ import {
   SlidersHorizontal,
   MessageCircle,
   Share2,
-  Filter
+  Filter,
+  Server
 } from 'lucide-react';
 
 
@@ -240,6 +241,15 @@ export default function App() {
   const [historyDatePreset, setHistoryDatePreset] = useState('all'); // 'all', 'today', 'yesterday', 'custom'
   const searchInputRef = useRef(null);
   const [focusedRowIndex, setFocusedRowIndex] = useState(-1);
+
+  // Backend Engine connection settings (Cloud Render vs Local/Cloudflare Tunnel)
+  const [backendMode, setBackendMode] = useState(() => {
+    return localStorage.getItem('CUSTOM_API_BASE') ? 'custom' : 'render';
+  });
+  const [customApiInput, setCustomApiInput] = useState(() => {
+    return localStorage.getItem('CUSTOM_API_BASE') || '';
+  });
+  const [backendStatus, setBackendStatus] = useState(null); // 'connected' | 'testing' | 'error'
 
   const getTodayLocalDateStr = () => {
     const today = new Date();
@@ -662,6 +672,59 @@ export default function App() {
       setSmtpNotification({ type: 'error', message: 'Error saving SMTP settings.' });
     } finally {
       setSavingSmtp(false);
+    }
+  };
+
+  const handleSaveBackendMode = async (newMode, urlInput) => {
+    setBackendStatus('testing');
+    if (newMode === 'render') {
+      localStorage.removeItem('CUSTOM_API_BASE');
+      setBackendMode('render');
+      try {
+        const res = await fetch('https://lid-gen-aioq.onrender.com/api/sessions');
+        if (res.ok) {
+          setBackendStatus('connected');
+          setTimeout(() => window.location.reload(), 600);
+        } else {
+          setBackendStatus('error');
+        }
+      } catch {
+        setBackendStatus('error');
+      }
+    } else {
+      const cleanUrl = (urlInput || '').trim().replace(/\/+$/, '');
+      if (!cleanUrl) {
+        setBackendStatus('error');
+        return;
+      }
+      localStorage.setItem('CUSTOM_API_BASE', cleanUrl);
+      setBackendMode('custom');
+      try {
+        const res = await fetch(`${cleanUrl}/sessions`);
+        if (res.ok) {
+          setBackendStatus('connected');
+          setTimeout(() => window.location.reload(), 600);
+        } else {
+          setBackendStatus('error');
+        }
+      } catch {
+        setBackendStatus('error');
+      }
+    }
+  };
+
+  const handleTestBackendConnection = async (url) => {
+    setBackendStatus('testing');
+    const target = (url || '').trim().replace(/\/+$/, '') || 'https://lid-gen-aioq.onrender.com/api';
+    try {
+      const res = await fetch(`${target}/sessions`);
+      if (res.ok) {
+        setBackendStatus('connected');
+      } else {
+        setBackendStatus('error');
+      }
+    } catch {
+      setBackendStatus('error');
     }
   };
 
@@ -1622,6 +1685,122 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20">
                 {/* Column 1: Configuration Credentials */}
                 <div className="lg:col-span-5 flex flex-col gap-6 h-fit">
+                  {/* Backend Server Engine Card */}
+                  <Card className="bg-popover border border-zinc-800/80 shadow-sm overflow-hidden h-fit">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="font-bold text-zinc-300 text-base flex items-center gap-2">
+                            <Server className="w-4 h-4 text-orange-500" />
+                            Backend Engine Server
+                          </CardTitle>
+                          <CardDescription className="text-xs text-zinc-500">Switch between Cloud (Render) & Local/Tunnel High-Speed Engine</CardDescription>
+                        </div>
+                        {backendStatus === 'connected' && (
+                          <Badge className="bg-emerald-950/80 text-emerald-400 border-emerald-800 text-[10px] px-2 py-0.5 font-mono">
+                            ✓ Online
+                          </Badge>
+                        )}
+                        {backendStatus === 'error' && (
+                          <Badge className="bg-rose-950/80 text-rose-400 border-rose-800 text-[10px] px-2 py-0.5 font-mono">
+                            ✖ Offline
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2.5">
+                        <label 
+                          onClick={() => handleSaveBackendMode('render', '')}
+                          className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                            backendMode === 'render' 
+                              ? 'bg-orange-500/10 border-orange-500/40 text-white' 
+                              : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'
+                          }`}
+                        >
+                          <input 
+                            type="radio" 
+                            name="backendMode" 
+                            checked={backendMode === 'render'} 
+                            onChange={() => handleSaveBackendMode('render', '')}
+                            className="mt-1 accent-orange-500 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <div className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                              <span>🌐 Cloud Server (Render)</span>
+                              <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[9px] px-1.5 py-0 font-mono">Default</Badge>
+                            </div>
+                            <div className="text-[11px] text-zinc-500 mt-0.5 font-mono truncate">
+                              https://lid-gen-aioq.onrender.com/api
+                            </div>
+                          </div>
+                        </label>
+
+                        <label 
+                          onClick={() => setBackendMode('custom')}
+                          className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                            backendMode === 'custom' 
+                              ? 'bg-orange-500/10 border-orange-500/40 text-white' 
+                              : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:border-zinc-700'
+                          }`}
+                        >
+                          <input 
+                            type="radio" 
+                            name="backendMode" 
+                            checked={backendMode === 'custom'} 
+                            onChange={() => setBackendMode('custom')}
+                            className="mt-1 accent-orange-500 cursor-pointer"
+                          />
+                          <div className="flex-1">
+                            <div className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                              <span>⚡ Local / Cloudflare Tunnel Engine</span>
+                              <Badge className="bg-orange-950/80 text-orange-400 border-orange-800 text-[9px] px-1.5 py-0 font-mono">Unlimited Speed</Badge>
+                            </div>
+                            <div className="text-[11px] text-zinc-400 mt-0.5">
+                              Uses your PC's RAM & fast scraper. Expose worldwide via Cloudflare tunnel.
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+
+                      {backendMode === 'custom' && (
+                        <div className="pt-2 space-y-3 animate-fade-in">
+                          <div>
+                            <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase tracking-wider">
+                              Custom API / Tunnel URL
+                            </label>
+                            <Input
+                              type="text"
+                              placeholder="e.g. https://xxxx.trycloudflare.com/api"
+                              value={customApiInput}
+                              onChange={(e) => setCustomApiInput(e.target.value)}
+                              className="text-xs font-mono bg-[#0E0F11] border-zinc-800 placeholder:text-zinc-600"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleSaveBackendMode('custom', customApiInput)}
+                              className="bg-orange-500 hover:bg-orange-600 text-white text-xs h-8 px-3.5 font-medium shadow-sm transition-all"
+                            >
+                              Save & Connect
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleTestBackendConnection(customApiInput)}
+                              className="border-zinc-750 bg-zinc-900/80 text-zinc-300 hover:text-white text-xs h-8 px-3 transition-all"
+                            >
+                              Test Ping
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
                   {/* SMTP Settings Card */}
                   <Card className="bg-popover border border-zinc-800/80 shadow-sm overflow-hidden h-fit">
                     <CardHeader>
