@@ -169,7 +169,13 @@ export default function App() {
   // Database lead listing states
   const [leads, setLeads] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [selectedSessionId, setSelectedSessionId] = useState('');
+  const [selectedSessionId, setSelectedSessionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('session') || '';
+    }
+    return '';
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(CONFIG_DEFAULTS.DEFAULT_TABLE_PAGE_SIZE);
@@ -306,6 +312,37 @@ export default function App() {
   // Load initial historical sessions and statistics
   useEffect(() => {
     fetchSessions(true);
+  }, []);
+
+  // Synchronize browser URL query param with selectedSessionId
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const currentParams = new URLSearchParams(window.location.search);
+    const currentSessionInUrl = currentParams.get('session');
+
+    if (selectedSessionId && selectedSessionId !== currentSessionInUrl) {
+      currentParams.set('session', selectedSessionId);
+      const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+      window.history.pushState({ session: selectedSessionId }, '', newUrl);
+    } else if (!selectedSessionId && currentSessionInUrl) {
+      currentParams.delete('session');
+      const queryStr = currentParams.toString();
+      const newUrl = queryStr ? `${window.location.pathname}?${queryStr}` : window.location.pathname;
+      window.history.pushState({ session: '' }, '', newUrl);
+    }
+  }, [selectedSessionId]);
+
+  // Handle browser back / forward buttons navigation (popstate)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const sessionFromUrl = params.get('session') || '';
+      setSelectedSessionId(sessionFromUrl);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Update lead list whenever query filters (search, page, selected session, filter settings) change
@@ -808,9 +845,14 @@ export default function App() {
           activeRuns
         });
 
-        // Automatically select the most recent session if autoSelect is true and data is not empty
-        if (autoSelect && data.length > 0) {
-          setSelectedSessionId(data[0].id);
+        // Automatically select session: prioritize URL ?session=... param if valid, else first session if autoSelect
+        if (data.length > 0) {
+          const urlParamSession = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session') : null;
+          if (urlParamSession && data.some(s => s.id === urlParamSession)) {
+            setSelectedSessionId(urlParamSession);
+          } else if (autoSelect && !urlParamSession) {
+            setSelectedSessionId(data[0].id);
+          }
         }
       }
     } catch (err) {
