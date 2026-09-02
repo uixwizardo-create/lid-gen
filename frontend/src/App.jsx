@@ -1005,6 +1005,10 @@ export default function App() {
     }
   };
 
+  const runScraper = async (targetKeyword, targetLocation, targetLimit) => {
+    await startScrapingProcess(targetKeyword, targetLocation, targetLimit || 25);
+  };
+
   const parsePromptClientSide = (text) => {
     let limit = 25;
     let clean = (text || '').trim();
