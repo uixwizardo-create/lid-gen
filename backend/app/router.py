@@ -54,14 +54,14 @@ router = APIRouter(prefix="/api")
 # In-memory progress queues for real-time SSE streaming
 progress_queues: Dict[str, List[asyncio.Queue]] = {}
 
-async def broadcast_progress(session_id: str, message: str, main_loop: asyncio.AbstractEventLoop = None) -> None:
+async def broadcast_progress(session_id: str, message: str) -> None:
     """Broadcasts a progress message to all connected clients for a session."""
     if session_id in progress_queues:
         for q in progress_queues[session_id]:
-            if main_loop:
-                main_loop.call_soon_threadsafe(q.put_nowait, message)
-            else:
-                await q.put(message)
+            try:
+                q.put_nowait(message)
+            except Exception:
+                pass
 
 async def run_scraper_task(
     session_id: str,
@@ -70,13 +70,12 @@ async def run_scraper_task(
     limit: int,
     skip_previous: bool,
     db_session_factory,
-    main_loop: asyncio.AbstractEventLoop = None,
     required_fields: Optional[List[str]] = None,
 ):
     """Background task runner for scraping and saving to the database."""
     try:
         async def progress_callback(msg: str) -> None:
-            await broadcast_progress(session_id, msg, main_loop)
+            await broadcast_progress(session_id, msg)
             logger.info(f"Session {session_id}: {msg}")
 
         exclude_names = set()
@@ -148,7 +147,7 @@ async def run_scraper_task(
             
     except Exception as e:
         logger.error(f"Error in background scraper task: {e}", exc_info=True)
-        await broadcast_progress(session_id, f"ERROR: Scraping failed. Details: {str(e)}", main_loop)
+        await broadcast_progress(session_id, f"ERROR: Scraping failed. Details: {str(e)}")
         # Update session status to failed
         async with db_session_factory() as db:
             stmt = select(SearchSession).where(SearchSession.id == session_id)
@@ -159,52 +158,14 @@ async def run_scraper_task(
                 await db.commit()
     finally:
         # Send terminal signal to close SSE stream
-        await broadcast_progress(session_id, "EOF", main_loop)
-        # Clean up queues thread-safely
-        def cleanup():
-            if session_id in progress_queues:
-                del progress_queues[session_id]
-        if main_loop:
-            main_loop.call_soon_threadsafe(cleanup)
-        else:
-            cleanup()
-
-def run_scraper_in_thread(
-    session_id: str,
-    keyword: str,
-    location: str,
-    limit: int,
-    skip_previous: bool,
-    db_session_factory,
-    main_loop,
-    required_fields: Optional[List[str]] = None,
-):
-    import threading
-    def thread_target():
-        import asyncio
-        import sys
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(
-                run_scraper_task(
-                    session_id, keyword, location, limit, skip_previous,
-                    db_session_factory, main_loop,
-                    required_fields=required_fields,
-                )
-            )
-        finally:
-            loop.close()
-
-    t = threading.Thread(target=thread_target, daemon=True)
-    t.start()
+        await broadcast_progress(session_id, "EOF")
+        # Clean up queues
+        if session_id in progress_queues:
+            del progress_queues[session_id]
 
 @router.post("/scrape")
 async def start_scrape(
     payload: ScrapeRequest,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
     """Initiates a background B2B lead extraction task."""
@@ -227,18 +188,17 @@ async def start_scrape(
     # Import session creator helper for background worker
     from app.database import async_session
     
-    # Retrieve main loop and dispatch via thread
-    main_loop = asyncio.get_running_loop()
-    background_tasks.add_task(
-        run_scraper_in_thread,
-        session_id,
-        payload.keyword,
-        payload.location,
-        payload.limit,
-        payload.skip_previous if payload.skip_previous is not None else True,
-        async_session,
-        main_loop,
-        payload.required_fields or [],
+    # Dispatch directly to native asyncio event loop
+    asyncio.create_task(
+        run_scraper_task(
+            session_id,
+            payload.keyword,
+            payload.location,
+            payload.limit,
+            payload.skip_previous if payload.skip_previous is not None else True,
+            async_session,
+            required_fields=payload.required_fields or [],
+        )
     )
     
     return {"session_id": session_id, "message": "Scraping task dispatched successfully"}

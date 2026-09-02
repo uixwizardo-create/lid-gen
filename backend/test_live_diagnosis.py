@@ -31,22 +31,22 @@ async def main():
 
         # Click on prompt sample button "Marketing agencies in London" or input prompt
         print("\n--- Testing prompt input & click ---")
-        sample_btn = await page.query_selector("button:has-text('Marketing agencies in London')")
-        if sample_btn:
-            print("Found sample button, clicking it...")
-            await sample_btn.click()
+        textarea = await page.query_selector("textarea[placeholder*='Extract']")
+        if textarea:
+            print("Found prompt textarea, typing 'Marketing agencies in London'...")
+            await textarea.fill("Marketing agencies in London")
             await asyncio.sleep(1.0)
             
             # Click the send/arrow button
-            send_btn = await page.query_selector("button:has(svg.rotate-90), button.bg-gradient-to-br")
+            send_btn = await page.query_selector("button:has(svg.rotate-90)")
             if send_btn:
                 print("Found send button, clicking it...")
                 await send_btn.click()
-                await asyncio.sleep(4.0)
+                await asyncio.sleep(6.0)
             else:
                 print("Send button not found by selector")
         else:
-            print("Sample button not found")
+            print("Prompt textarea not found")
 
         print("\n--- Post-Click Console Logs ---")
         for log in console_logs[-15:]:
