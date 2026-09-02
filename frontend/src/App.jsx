@@ -860,6 +860,18 @@ export default function App() {
     }
   }, [selectedSessionId, sessions, isScraping]);
 
+  // Auto-refresh background running sessions every 4 seconds
+  useEffect(() => {
+    const sess = sessions.find(s => s.id === selectedSessionId);
+    if (sess && sess.status === 'running' && !isScraping) {
+      const interval = setInterval(() => {
+        fetchSessions();
+        fetchLeads(selectedSessionId);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedSessionId, sessions, isScraping]);
+
   const fetchSessions = async (autoSelect = false) => {
     try {
       const res = await fetch(`${API_BASE}/sessions`);
@@ -1216,7 +1228,7 @@ export default function App() {
         } else if (sess.status === 'running') {
           return [
             `✓ Initialization parameters: Keyword "${sess.keyword}", Location "${sess.location}"`,
-            `⚠ Scraper process is marked as running but is currently idle/unmonitored.`,
+            `⚙ Scraper is actively running in background. Extracting leads...`,
           ];
         } else {
           return [
@@ -2512,7 +2524,7 @@ export default function App() {
                   {['Plumbers in Seattle', 'Marketing agencies in London', 'Dentists in Toronto', 'Real estate in Dubai'].map(suggestion => (
                     <button key={suggestion} onClick={() => {
                         const parts = suggestion.split(' in ');
-                        runScraper(parts[0], parts[1], 50);
+                        runScraper(parts[0], parts[1], 15);
                       }} 
                       className="px-4 py-2 rounded-full bg-zinc-800/40 border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all"
                     >
